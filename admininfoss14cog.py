@@ -35,8 +35,7 @@ class AdminInfoSs14Cog(commands.Cog):
         result = "**Список администрации на данном сервере:** "
         # this is a loop to get the administrator's name by id
         for admin in admins:
-            result += f"\n{admin[0]} - {admin[1] if admin[1] is not None else "Наименования нет."}"
-        print(admins)
+            result += f"\n{admin[0]} - {admin[1] if admin[1] is not None else 'Наименования нет.'}"
         await ctx.respond(result)
 
 

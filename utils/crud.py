@@ -1,5 +1,5 @@
 from .models import Player, Admin, Server_ban, Server_role_ban
-from .db_alchemy import get_db
+from utils.db_alchemy import get_db
 
 
 def get_admins_list():
