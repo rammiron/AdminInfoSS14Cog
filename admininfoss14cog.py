@@ -15,19 +15,16 @@ else:
     from utils.models import Base
 
 
-
-
 class AdminInfoSs14Cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-
     # the first function is to get a list of administrators on the server
     @commands.slash_command(name="admins_list",
-                       description=
-                       "Выводит список администрации сервера"
-                       " и наименования отображаемые в"
-                       "adminwho.")
+                            description=
+                            "Выводит список администрации сервера"
+                            " и наименования отображаемые в"
+                            "adminwho.")
     async def get_admins_list(self, ctx: discord.ApplicationContext):
         # this is tuple with all fields from table "admin"
         admins = crud.get_admins_list()
@@ -38,17 +35,15 @@ class AdminInfoSs14Cog(commands.Cog):
             result += f"\n{admin[0]} - {admin[1] if admin[1] is not None else 'Наименования нет.'}"
         await ctx.respond(result)
 
-
     @commands.Cog.listener()
     async def on_ready(self):
         Base.metadata.create_all(engine)
 
-
     # function for displaying a list
     # of user bans by name for a certain period of time
     @commands.slash_command(name="user_bans_list",
-                       description="Выводит список банов пользователя "
-                                   "по имени за определенный промежуток времени.")
+                            description="Выводит список банов пользователя "
+                                        "по имени за определенный промежуток времени.")
     async def get_user_bans(self, ctx: discord.ApplicationContext, username: Option(str, "Сикей игрока."),
                             start_date: Option(str, "Начало временного диапазона для поиска банов. Формат времени:"
                                                     "\"ГГГГ-ММ-ДД\"") = '2000-01-01',
@@ -84,9 +79,10 @@ class AdminInfoSs14Cog(commands.Cog):
                 # see field name :)
                 date_format = "%Y-%m-%d %H:%M:%S"
                 # also with this
-                expiration_time = datetime.strptime(ban.expiration_time.split('.')[0], date_format)
-                # calculating the difference between the dates
-                time_difference = expiration_time - ban_time
+                time_difference = "перманентный"
+                if ban.expiration_time is not None:
+                    expiration_time = datetime.strptime(ban.expiration_time.split('.')[0], date_format)
+                    time_difference = expiration_time - ban_time
 
                 banning_admin_name = crud.get_player_name_by_id(ban.banning_admin)
 
@@ -136,16 +132,17 @@ class AdminInfoSs14Cog(commands.Cog):
                 # see field name :)
                 date_format = "%Y-%m-%d %H:%M:%S"
                 # also with this
-                expiration_time = datetime.strptime(ban.expiration_time.split('.')[0], date_format)
-                # calculating the difference between the dates
-                time_difference = expiration_time - ban_time
+                time_difference = "перманентный"
+                if ban.expiration_time is not None:
+                    expiration_time = datetime.strptime(ban.expiration_time.split('.')[0], date_format)
+                    time_difference = expiration_time - ban_time
 
                 banning_admin_name = crud.get_player_name_by_id(ban.banning_admin)
 
                 # update result string
                 result += (
                     f"\n**Бан раунда #{ban.round_id}.** \n**Роль:** {ban.role_id.split(':')[1]}.\n**Причина:** \"{ban.reason}\"."
-                    f" \n**Время бана:** {time_difference}\n**Выдан:** {ban_time}s\n**Бан выдал**: "
+                    f" \n**Время бана:** {time_difference}.\n**Выдан:** {ban_time}s\n**Бан выдал**: "
                     f"{banning_admin_name} "
                     f"\n-----------")
                 bans_got += 1
@@ -208,10 +205,12 @@ class AdminInfoSs14Cog(commands.Cog):
     @commands.slash_command(name="top_job_bans_admin", description="Отображает топ админов по банам ролей.")
     async def get_top_of_job_bans_between_admins(self, ctx: discord.ApplicationContext,
                                                  start_date: Option(str,
-                                                                    "Начало временного диапазона для поиска банов. Формат времени:"
+                                                                    "Начало временного диапазона для поиска"
+                                                                    " банов. Формат времени:"
                                                                     "\"ГГГГ-ММ-ДД\"") = '2000-01-01',
                                                  end_date: Option(str,
-                                                                  "Конец временного диапазона для поиска банов. Формат времени:"
+                                                                  "Конец временного диапазона для поиска "
+                                                                  "банов. Формат времени:"
                                                                   "\"ГГГГ-ММ-ДД\"") = str(datetime.today().date())):
         # tuple with all bans
         bans = crud.get_all_job_bans()
