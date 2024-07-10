@@ -19,7 +19,7 @@ class Admin(Base):
     title = Column(Text)
 
 
-class Server_ban(Base):
+class ServerBan(Base):
     __tablename__ = "server_ban"
     server_ban_id = Column(Integer, nullable=False, primary_key=True)
     ban_time = Column(Text, nullable=False)
@@ -30,7 +30,7 @@ class Server_ban(Base):
     round_id = Column(Integer)
 
 
-class Server_role_ban(Base):
+class ServerRoleBan(Base):
     __tablename__ = "server_role_ban"
     server_role_ban_id = Column(Integer, nullable=False, primary_key=True)
     ban_time = Column(Text, nullable=False)

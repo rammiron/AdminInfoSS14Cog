@@ -1,18 +1,34 @@
 import datetime
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import discord
 from discord.ext import commands
 from discord.commands import Option
 
-from utils.db_alchemy import engine
-
 if "cogs" in __name__:
     from .utils import crud
-    from .utils.models import Base
+
 else:
     from utils import crud
-    from utils.models import Base
+
+
+def time_difference_restruct(time_difference: timedelta):
+    time_dict = {
+        "minute": 60,
+        "hour": 3600,
+        "day": 86400
+    }
+    time_to_seconds = time_difference.total_seconds()
+    seconds_to_int = int(time_to_seconds)
+    if time_dict["minute"] <= seconds_to_int < time_dict["hour"]:
+        minutes = int(seconds_to_int / time_dict["minute"])
+        return f"{minutes} мин."
+    elif time_dict["day"] > seconds_to_int >= time_dict["hour"]:
+        hours = seconds_to_int / time_dict["hour"]
+        return f"{hours:.1f} ч."
+    elif time_dict["day"] <= seconds_to_int:
+        days = seconds_to_int / time_dict["day"]
+        return f"{days:.0f} д."
 
 
 class AdminInfoSs14Cog(commands.Cog):
@@ -26,21 +42,22 @@ class AdminInfoSs14Cog(commands.Cog):
                             " и наименования отображаемые в"
                             "adminwho.")
     async def get_admins_list(self, ctx: discord.ApplicationContext):
+        # region embed
+        result_embed = discord.Embed(
+            title="Список администрации на данном сервере:",
+            colour=discord.Colour.dark_green()
+        )
+        # endregion
+
         # this is tuple with all fields from table "admin"
         admins = crud.get_admins_list()
         # this is string with result
-        result = "**Список администрации на данном сервере:** "
         # this is a loop to get the administrator's name by id
         for admin in admins:
-            result += f"\n{admin[0]} - {admin[1] if admin[1] is not None else 'Наименования нет.'}"
-        await ctx.respond(result)
+            result_embed.add_field(name=f"\n{admin[0]} - {admin[1] if admin[1] is not None else 'наименования нет.'}",
+                                   value="", inline=False)
+        await ctx.respond(embed=result_embed)
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        Base.metadata.create_all(engine)
-
-    # function for displaying a list
-    # of user bans by name for a certain period of time
     @commands.slash_command(name="user_bans_list",
                             description="Выводит список банов пользователя "
                                         "по имени за определенный промежуток времени.")
@@ -50,53 +67,62 @@ class AdminInfoSs14Cog(commands.Cog):
                             end_date: Option(str, "Конец временного диапазона для поиска банов. Формат времени:"
                                                   "\"ГГГГ-ММ-ДД\"")
                             = str(datetime.today().date())):
-        # getting the user ID
-        user_id = crud.get_user_id_by_name(username)
-        # checking the presence of this user in the table
-        if user_id is None:
-            # this is message responding when user not detected
-            await ctx.respond("Пользователь не найден.")
+
+        user = crud.get_user_id_by_name(username)
+        if user is None:
+            await ctx.respond(f"Пользователь **{username}** не найден. Убедитесь что правильно ввели сикей.")
             return
         await ctx.defer()
-        # this is string with result
-        result = f"**Баны {username}:**\n-----------"
-        # this is tuple with all bans in the table
-        user_bans = crud.get_user_bans(user_id)
-        bans_got = 0
-        datetime_end_date = (
-            datetime.strptime(end_date, "%Y-%m-%d").date())
-        datetime_start_date = (
-            datetime.strptime(start_date, "%Y-%m-%d").date())
-        # checking the presence values on the tuple
-        if len(user_bans) <= 0:
-            await ctx.respond(f"У пользователя {username} не обнаружено банов на данном промежутке времени.")
-            return
-        for ban in user_bans:
-            date_format = "%Y-%m-%d %H:%M:%S"
-            ban_time = datetime.strptime(str(ban.ban_time).split('.')[0], date_format)
 
-            if datetime_end_date >= ban_time.date() > datetime_start_date:
-                # see field name :)
+        if start_date == '2000-01-01':
+            embed_start_date = ""
+        else:
+            embed_start_date = f"с {start_date} "
+        if end_date == str(datetime.today().date()):
+            embed_end_date = "до сегодняшнего дня."
+        else:
+            embed_end_date = f"до {end_date}."
+        if start_date == str(datetime.today().date()) and end_date == str(datetime.today().date()):
+            embed_start_date = ""
+            embed_end_date = "за сегодняшний день."
+        elif start_date == end_date:
+            embed_start_date = ""
+            embed_end_date = f"за {end_date}."
+
+        # region embed
+        result_embed = discord.Embed(
+            title=f"Первые 100 банов *{username}* " + embed_start_date + embed_end_date,
+            color=discord.Colour.red()
+        )
+        # endregion
+
+        start_date_formatted = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date_formatted = datetime.strptime(end_date, "%Y-%m-%d")
+        bans = crud.get_user_bans(start_date_formatted, end_date_formatted, crud.get_user_id_by_name(username))
+        if len(bans) <= 0 or bans is None:
+            await ctx.respond(f"У {username} {embed_start_date}"
+                              f"{embed_end_date.split('.')[0]} банов не обнаружено.")
+            return
+        bans_count = 0
+        for ban in bans:
+
+            bans_count += 1
+            time_difference = "перманентный"
+            if ban.expiration_time is not None:
                 date_format = "%Y-%m-%d %H:%M:%S"
-                # also with this
-                time_difference = "перманентный"
-                if ban.expiration_time is not None:
-                    expiration_time = datetime.strptime(ban.expiration_time.split('.')[0], date_format)
-                    time_difference = expiration_time - ban_time
+                expiration_time = datetime.strptime(str(ban.expiration_time).split('.')[0], date_format)
+                ban_time = datetime.strptime(str(ban.ban_time).split('.')[0], date_format)
+                time_difference = expiration_time - ban_time
+                time_difference = time_difference_restruct(time_difference)
 
-                banning_admin_name = crud.get_player_name_by_id(ban.banning_admin)
-
-                # update result string
-                result += (f"\n**Бан раунда #{ban.round_id}.** \n**Причина:** \"{ban.reason}\"."
-                           f" \n**Время бана:** {time_difference}\n**Выдан:** {ban_time}s\n**Бан выдал**: "
-                           f"{banning_admin_name}"
-                           f"\n-----------")
-                bans_got += 1
-        if bans_got == 0:
-            await ctx.respond(f"У пользователя {username} не обнаружено банов на данном промежутке времени.")
-            return
-        # respond result
-        await ctx.respond(result)
+            banning_admin_name = crud.get_player_name_by_id(ban.banning_admin)
+            result_embed.add_field(name=f"**Бан {bans_count}**", value=f"Раунд: {ban.round_id}."
+                                                                       f"\nВремя бана: {time_difference}"
+                                                                       f"\nПричина: {ban.reason}."
+                                                                       f"\nВремя выдачи:"
+                                                                       f" {str(ban.ban_time).split('.')[0]}."
+                                                                       f"\nБан выдал: {banning_admin_name}.")
+        await ctx.respond(embed=result_embed)
 
     @commands.slash_command(name="user_job_bans_list")
     async def get_user_jb(self, ctx: discord.ApplicationContext, username: Option(str, "Сикей игрока."),
@@ -105,64 +131,100 @@ class AdminInfoSs14Cog(commands.Cog):
                           end_date: Option(str, "Конец временного диапазона для поиска банов. Формат времени:"
                                                 "\"ГГГГ-ММ-ДД\"")
                           = str(datetime.today().date())):
-        # getting the user ID
-        user_id = crud.get_user_id_by_name(username)
-        # checking the presence of this user in the table
-        if user_id is None:
-            # this is message responding when user not detected
-            await ctx.respond("Пользователь не найден.")
+        user = crud.get_user_id_by_name(username)
+        if user is None:
+            await ctx.respond(f"Пользователь **{username}** не найден. Убедитесь что правильно ввели сикей.")
             return
         await ctx.defer()
-        # this is string with result
-        result = f"**Баны {username}:**\n-----------"
-        # this is tuple with all bans in the table
-        user_bans = crud.get_user_job_bans(user_id)
-        bans_got = 0
-        datetime_end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-        datetime_start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-        # checking the presence values on the tuple
-        if len(user_bans) <= 0:
-            await ctx.respond(f"У пользователя {username} не обнаружено банов ролей на данном промежутке времени.")
-            return
-        for ban in user_bans:
-            date_format = "%Y-%m-%d %H:%M:%S"
-            ban_time = datetime.strptime(str(ban.ban_time).split('.')[0], date_format)
 
-            if datetime_end_date >= ban_time.date() > datetime_start_date:
-                # see field name :)
+        if start_date == '2000-01-01':
+            embed_start_date = ""
+        else:
+            embed_start_date = f"с {start_date} "
+        if end_date == str(datetime.today().date()):
+            embed_end_date = "до сегодняшнего дня."
+        else:
+            embed_end_date = f"до {end_date}."
+        if start_date == str(datetime.today().date()) and end_date == str(datetime.today().date()):
+            embed_start_date = ""
+            embed_end_date = "за сегодняшний день."
+        elif start_date == end_date:
+            embed_start_date = ""
+            embed_end_date = f"за {end_date}."
+
+        # region embed
+        result_embed = discord.Embed(
+            title=f"Первые 100 банов ролей *{username}* " + embed_start_date + embed_end_date,
+            color=discord.Colour.dark_blue()
+        )
+        # endregion
+
+        start_date_formatted = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date_formatted = datetime.strptime(end_date, "%Y-%m-%d")
+        bans = crud.get_user_job_bans(start_date_formatted, end_date_formatted, crud.get_user_id_by_name(username))
+        if len(bans) <= 0 or bans is None:
+            await ctx.respond(f"У {username} {embed_start_date}"
+                              f"{embed_end_date.split('.')[0]} банов ролей не обнаружено.")
+            return
+        bans_count = 0
+        for ban in bans:
+
+            bans_count += 1
+            time_difference = "перманентный."
+            if ban.expiration_time is not None:
                 date_format = "%Y-%m-%d %H:%M:%S"
-                # also with this
-                time_difference = "перманентный"
-                if ban.expiration_time is not None:
-                    expiration_time = datetime.strptime(ban.expiration_time.split('.')[0], date_format)
-                    time_difference = expiration_time - ban_time
+                expiration_time = datetime.strptime(str(ban.expiration_time).split('.')[0], date_format)
+                ban_time = datetime.strptime(str(ban.ban_time).split('.')[0], date_format)
+                time_difference = expiration_time - ban_time
+                time_difference = time_difference_restruct(time_difference)
 
-                banning_admin_name = crud.get_player_name_by_id(ban.banning_admin)
-
-                # update result string
-                result += (
-                    f"\n**Бан раунда #{ban.round_id}.** \n**Роль:** {ban.role_id.split(':')[1]}.\n**Причина:** \"{ban.reason}\"."
-                    f" \n**Время бана:** {time_difference}.\n**Выдан:** {ban_time}s\n**Бан выдал**: "
-                    f"{banning_admin_name} "
-                    f"\n-----------")
-                bans_got += 1
-        if bans_got == 0:
-            await ctx.respond(f"У пользователя {username} не обнаружено банов на данном промежутке времени.")
-            return
-        # respond result
-        await ctx.respond(result)
+            banning_admin_name = crud.get_player_name_by_id(ban.banning_admin)
+            result_embed.add_field(name=f"**Бан {bans_count}**", value=f"Раунд: {ban.round_id}."
+                                                                       f"\nВремя бана: {time_difference}"
+                                                                       f"\nПричина: {ban.reason}."
+                                                                       f"\nРоль: {str(ban.role_id).split(':')[1]}"
+                                                                       f"\nВремя выдачи:"
+                                                                       f" {str(ban.ban_time).split('.')[0]}."
+                                                                       f"\nБан выдал: {banning_admin_name}."
+                                   , inline=False)
+        await ctx.respond(embed=result_embed)
 
     # this function displays top admins by ban
     @commands.slash_command(name="top_bans_admin", description="Отображает топ админов по банам.")
     async def get_top_of_bans_between_admins(self, ctx: discord.ApplicationContext,
                                              start_date: Option(str,
-                                                                "Начало временного диапазона для поиска банов. Формат времени:"
+                                                                "Начало временного диапазона для поиска банов. Формат "
+                                                                "времени:"
                                                                 "\"ГГГГ-ММ-ДД\"") = '2000-01-01',
                                              end_date: Option(str,
-                                                              "Конец временного диапазона для поиска банов. Формат времени:"
+                                                              "Конец временного диапазона для поиска банов. Формат "
+                                                              "времени:"
                                                               "\"ГГГГ-ММ-ДД\"") = str(datetime.today().date())):
+
+        if start_date == '2000-01-01':
+            embed_start_date = ""
+        else:
+            embed_start_date = f"с {start_date} "
+        if end_date == str(datetime.today().date()):
+            embed_end_date = "до сегодняшнего дня."
+        else:
+            embed_end_date = f"до {end_date}."
+        if start_date == str(datetime.today().date()) and end_date == str(datetime.today().date()):
+            embed_start_date = ""
+            embed_end_date = "за сегодняшний день."
+        elif start_date == end_date:
+            embed_start_date = ""
+            embed_end_date = f"за {end_date}."
+        # region embed
+        result_embed = discord.Embed(
+            title=f"Топ админов по банам {embed_start_date} {embed_end_date}",
+            colour=discord.Colour.dark_gold()
+        )
+
+        # endregion
+
         # tuple with all bans
-        bans = crud.get_all_bans()
+        bans = crud.get_all_bans(start_date, end_date)
 
         # dictionary with admins who committed bans
         admins_dictionary = {}
@@ -191,15 +253,15 @@ class AdminInfoSs14Cog(commands.Cog):
         # sorting dictionary of admins
         sorted_admin_dict = dict(sorted(admins_dictionary.items(), key=lambda item: item[1], reverse=True))
         # this is the result string for respond
-        result = "**Топ админов по банам:** \n\n"
         # index field for greater clarity
         index = 1
         for admin in sorted_admin_dict:
             # formating result string
-            result += f"{index}. {admin} выдал банов: {sorted_admin_dict[admin]}\n"
+            result_embed.add_field(name=f"{index}e место:", value=f" **{admin}** выдал банов:"
+                                                                  f" {sorted_admin_dict[admin]}", inline=False)
             index += 1
         # responding the result
-        await ctx.respond(result)
+        await ctx.respond(embed=result_embed)
 
     # this function displays top admins by job ban
     @commands.slash_command(name="top_job_bans_admin", description="Отображает топ админов по банам ролей.")
@@ -212,8 +274,30 @@ class AdminInfoSs14Cog(commands.Cog):
                                                                   "Конец временного диапазона для поиска "
                                                                   "банов. Формат времени:"
                                                                   "\"ГГГГ-ММ-ДД\"") = str(datetime.today().date())):
+        if start_date == '2000-01-01':
+            embed_start_date = ""
+        else:
+            embed_start_date = f"с {start_date} "
+        if end_date == str(datetime.today().date()):
+            embed_end_date = "до сегодняшнего дня."
+        else:
+            embed_end_date = f"до {end_date}."
+        if start_date == str(datetime.today().date()) and end_date == str(datetime.today().date()):
+            embed_start_date = ""
+            embed_end_date = "за сегодняшний день."
+        elif start_date == end_date:
+            embed_start_date = ""
+            embed_end_date = f"за {end_date}."
+        # region embed
+        result_embed = discord.Embed(
+            title=f"Топ админов по банам ролей {embed_start_date} {embed_end_date}",
+            colour=discord.Colour.dark_gold()
+        )
+
+        # endregion
+
         # tuple with all bans
-        bans = crud.get_all_job_bans()
+        bans = crud.get_all_job_bans(start_date, end_date)
 
         # dictionary with admins who committed bans
         admins_dictionary = {}
@@ -224,18 +308,17 @@ class AdminInfoSs14Cog(commands.Cog):
             return
         for ban in bans:
             date_format = "%Y-%m-%d %H:%M:%S"
-
             ban_time = datetime.strptime(str(ban.ban_time).split('.')[0], date_format)
             # checking whether the ban falls within the time period
             if datetime.strptime(end_date, "%Y-%m-%d").date() >= ban_time.date() > datetime.strptime(start_date,
                                                                                                      "%Y-%m-%d").date():
-
-                banning_admin_name = crud.get_player_name_by_id(ban.banning_admin)
                 # checking the dictionary for the presence of a key with the value of bans
+                banning_admin_name = crud.get_player_name_by_id(ban.banning_admin)
                 if banning_admin_name in admins_dictionary:
                     admins_dictionary[banning_admin_name] += 1
                 else:
                     admins_dictionary[banning_admin_name] = 1
+
         # checking the presence admins in admin dictionary
         if len(admins_dictionary) == 0:
             await ctx.respond("Баны ролей не обнаружены.")
@@ -243,12 +326,12 @@ class AdminInfoSs14Cog(commands.Cog):
         # sorting dictionary of admins
         sorted_admin_dict = dict(sorted(admins_dictionary.items(), key=lambda item: item[1], reverse=True))
         # this is the result string for respond
-        result = "**Топ админов по банам ролей:** \n\n"
         # index field for greater clarity
         index = 1
         for admin in sorted_admin_dict:
             # formating result string
-            result += f"{index}. {admin} выдал банов ролей: {sorted_admin_dict[admin]}\n"
+            result_embed.add_field(name=f"{index}e место:", value=f" **{admin}** выдал банов ролей:"
+                                                                  f" {sorted_admin_dict[admin]}", inline=False)
             index += 1
         # responding the result
-        await ctx.respond(result)
+        await ctx.respond(embed=result_embed)
