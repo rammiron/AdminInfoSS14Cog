@@ -7,9 +7,10 @@ from discord.commands import Option
 
 if "cogs" in __name__:
     from .utils import crud
-
+    from .utils import models
 else:
     from utils import crud
+    from utils import models
 
 
 def time_difference_restruct(time_difference: timedelta):
@@ -54,7 +55,7 @@ class AdminInfoSs14Cog(commands.Cog):
         # this is string with result
         # this is a loop to get the administrator's name by id
         for admin in admins:
-            result_embed.add_field(name=f"\n{admin[0]} - {admin[1] if admin[1] is not None else 'наименования нет.'}",
+            result_embed.add_field(name=f"\n{admin[0].last_seen_user_name} - {admin[1] if admin[1] is not None else 'наименования нет.'}",
                                    value="", inline=False)
         await ctx.respond(embed=result_embed)
 
@@ -223,44 +224,24 @@ class AdminInfoSs14Cog(commands.Cog):
 
         # endregion
 
-        # tuple with all bans
-        bans = crud.get_all_bans(start_date, end_date)
+        admins_dict = {}
 
-        # dictionary with admins who committed bans
-        admins_dictionary = {}
-
-        # checking len of bans
-        if len(bans) == 0:
+        for admin in crud.get_admins_list():
+            bans = crud.get_admin_bans(admin[0].user_id, start_date, end_date)
+            if len(bans) <= 0:
+                continue
+            admins_dict[admin[0].last_seen_user_name] = len(bans)
+        if len(admins_dict) <= 0:
             await ctx.respond("Баны не обнаружены.")
             return
-        for ban in bans:
-            date_format = "%Y-%m-%d %H:%M:%S"
-            ban_time = datetime.strptime(str(ban.ban_time).split('.')[0], date_format)
-            # checking whether the ban falls within the time period
-            if datetime.strptime(end_date, "%Y-%m-%d").date() >= ban_time.date() > datetime.strptime(start_date,
-                                                                                                     "%Y-%m-%d").date():
-                # checking the dictionary for the presence of a key with the value of bans
-                banning_admin_name = crud.get_player_name_by_id(ban.banning_admin)
-                if banning_admin_name in admins_dictionary:
-                    admins_dictionary[banning_admin_name] += 1
-                else:
-                    admins_dictionary[banning_admin_name] = 1
-
-        # checking the presence admins in admin dictionary
-        if len(admins_dictionary) == 0:
-            await ctx.respond("Баны не обнаружены.")
-            return
-        # sorting dictionary of admins
-        sorted_admin_dict = dict(sorted(admins_dictionary.items(), key=lambda item: item[1], reverse=True))
-        # this is the result string for respond
-        # index field for greater clarity
+        sorted_admin_dict = dict(sorted(admins_dict.items(), key=lambda item: item[1], reverse=True))
         index = 1
         for admin in sorted_admin_dict:
             # formating result string
             result_embed.add_field(name=f"{index}e место:", value=f" **{admin}** выдал банов:"
                                                                   f" {sorted_admin_dict[admin]}", inline=False)
             index += 1
-        # responding the result
+
         await ctx.respond(embed=result_embed)
 
     # this function displays top admins by job ban
@@ -296,42 +277,22 @@ class AdminInfoSs14Cog(commands.Cog):
 
         # endregion
 
-        # tuple with all bans
-        bans = crud.get_all_job_bans(start_date, end_date)
+        admins_dict = {}
 
-        # dictionary with admins who committed bans
-        admins_dictionary = {}
-
-        # checking len of bans
-        if len(bans) == 0:
+        for admin in crud.get_admins_list():
+            bans = crud.get_admin_role_bans(admin[0].user_id, start_date, end_date)
+            if len(bans) <= 0:
+                continue
+            admins_dict[admin[0].last_seen_user_name] = len(bans)
+        if len(admins_dict) <= 0:
             await ctx.respond("Баны ролей не обнаружены.")
             return
-        for ban in bans:
-            date_format = "%Y-%m-%d %H:%M:%S"
-            ban_time = datetime.strptime(str(ban.ban_time).split('.')[0], date_format)
-            # checking whether the ban falls within the time period
-            if datetime.strptime(end_date, "%Y-%m-%d").date() >= ban_time.date() > datetime.strptime(start_date,
-                                                                                                     "%Y-%m-%d").date():
-                # checking the dictionary for the presence of a key with the value of bans
-                banning_admin_name = crud.get_player_name_by_id(ban.banning_admin)
-                if banning_admin_name in admins_dictionary:
-                    admins_dictionary[banning_admin_name] += 1
-                else:
-                    admins_dictionary[banning_admin_name] = 1
-
-        # checking the presence admins in admin dictionary
-        if len(admins_dictionary) == 0:
-            await ctx.respond("Баны ролей не обнаружены.")
-            return
-        # sorting dictionary of admins
-        sorted_admin_dict = dict(sorted(admins_dictionary.items(), key=lambda item: item[1], reverse=True))
-        # this is the result string for respond
-        # index field for greater clarity
+        sorted_admin_dict = dict(sorted(admins_dict.items(), key=lambda item: item[1], reverse=True))
         index = 1
         for admin in sorted_admin_dict:
             # formating result string
             result_embed.add_field(name=f"{index}e место:", value=f" **{admin}** выдал банов ролей:"
                                                                   f" {sorted_admin_dict[admin]}", inline=False)
             index += 1
-        # responding the result
+
         await ctx.respond(embed=result_embed)

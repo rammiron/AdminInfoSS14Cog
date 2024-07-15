@@ -13,7 +13,7 @@ def get_user_by_name(name):
 
 def get_admins_list():
     db = next(get_db())
-    return db.query(Player.last_seen_user_name, Admin.title).join(Admin, Player.user_id == Admin.user_id).all()
+    return db.query(Player, Admin.title).join(Admin, Player.user_id == Admin.user_id).all()
 
 
 def get_player_name_by_id(user_id: int):
@@ -49,4 +49,18 @@ def get_all_bans(start_date, end_date):
 def get_all_job_bans(start_date, end_date):
     db = next(get_db())
     return (db.query(ServerRoleBan).filter(ServerRoleBan.ban_time > start_date, ServerRoleBan.ban_time < end_date).
+            limit(100).all())
+
+
+def get_admin_bans(user_id, start_date, end_date):
+    db = next(get_db())
+    return (db.query(ServerBan).filter(ServerBan.ban_time > start_date, ServerBan.ban_time < end_date,
+                                       ServerBan.banning_admin == user_id).
+            limit(100).all())
+
+
+def get_admin_role_bans(user_id, start_date, end_date):
+    db = next(get_db())
+    return (db.query(ServerRoleBan).filter(ServerRoleBan.ban_time > start_date, ServerRoleBan.ban_time < end_date,
+                                           ServerRoleBan.banning_admin == user_id).
             limit(100).all())
