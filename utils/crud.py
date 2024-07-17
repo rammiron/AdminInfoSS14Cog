@@ -13,11 +13,6 @@ def get_user_by_name(name):
         return None
 
 
-def get_admins_list():
-    db = next(get_db())
-    return db.query(Player, Admin.title).join(Admin, Player.user_id == Admin.user_id).all()
-
-
 def get_player_name_by_id(user_id: int):
     db = next(get_db())
     return db.query(Player.last_seen_user_name).filter(Player.user_id == user_id).first()[0]
