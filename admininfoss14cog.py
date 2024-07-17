@@ -55,8 +55,9 @@ class AdminInfoSs14Cog(commands.Cog):
         # this is string with result
         # this is a loop to get the administrator's name by id
         for admin in admins:
-            result_embed.add_field(name=f"\n{admin[0].last_seen_user_name} - {admin[1] if admin[1] is not None else 'наименования нет.'}",
-                                   value="", inline=False)
+            result_embed.add_field(
+                name=f"\n{admin[0].last_seen_user_name} - {admin[1] if admin[1] is not None else 'наименования нет.'}",
+                value="", inline=False)
         await ctx.respond(embed=result_embed)
 
     @commands.slash_command(name="user_bans_list",
@@ -223,23 +224,12 @@ class AdminInfoSs14Cog(commands.Cog):
         )
 
         # endregion
-
-        admins_dict = {}
-
-        for admin in crud.get_admins_list():
-            bans = crud.get_admin_bans(admin[0].user_id, start_date, end_date)
-            if len(bans) <= 0:
-                continue
-            admins_dict[admin[0].last_seen_user_name] = len(bans)
-        if len(admins_dict) <= 0:
-            await ctx.respond("Баны не обнаружены.")
-            return
-        sorted_admin_dict = dict(sorted(admins_dict.items(), key=lambda item: item[1], reverse=True))
         index = 1
-        for admin in sorted_admin_dict:
+        top_bans_list = crud.get_all_bans_count(start_date, end_date)
+        for ban_count_tuple in top_bans_list:
             # formating result string
-            result_embed.add_field(name=f"{index}e место:", value=f" **{admin}** выдал банов:"
-                                                                  f" {sorted_admin_dict[admin]}", inline=False)
+            result_embed.add_field(name=f"{index}e место:", value=f" **{ban_count_tuple[2]}** выдал банов:"
+                                                                  f" {ban_count_tuple[0]}", inline=False)
             index += 1
 
         await ctx.respond(embed=result_embed)
@@ -277,22 +267,12 @@ class AdminInfoSs14Cog(commands.Cog):
 
         # endregion
 
-        admins_dict = {}
-
-        for admin in crud.get_admins_list():
-            bans = crud.get_admin_role_bans(admin[0].user_id, start_date, end_date)
-            if len(bans) <= 0:
-                continue
-            admins_dict[admin[0].last_seen_user_name] = len(bans)
-        if len(admins_dict) <= 0:
-            await ctx.respond("Баны ролей не обнаружены.")
-            return
-        sorted_admin_dict = dict(sorted(admins_dict.items(), key=lambda item: item[1], reverse=True))
         index = 1
-        for admin in sorted_admin_dict:
+        top_bans_list = crud.get_all_job_bans_count(start_date, end_date)
+        for ban_count_tuple in top_bans_list:
             # formating result string
-            result_embed.add_field(name=f"{index}e место:", value=f" **{admin}** выдал банов ролей:"
-                                                                  f" {sorted_admin_dict[admin]}", inline=False)
+            result_embed.add_field(name=f"{index}e место:", value=f" **{ban_count_tuple[2]}** выдал банов ролей:"
+                                                                  f" {ban_count_tuple[0]}", inline=False)
             index += 1
 
         await ctx.respond(embed=result_embed)

@@ -1,3 +1,5 @@
+from sqlalchemy import func
+
 from .models import Player, Admin, ServerBan, ServerRoleBan
 from utils.db_alchemy import get_db
 
@@ -41,15 +43,25 @@ def get_user_job_bans(start_date, end_date, user_id):
                                           ServerRoleBan.player_user_id == user_id).limit(100).all()
 
 
-def get_all_bans(start_date, end_date):
+def get_all_bans_count(start_date, end_date):
     db = next(get_db())
-    return db.query(ServerBan).filter(ServerBan.ban_time > start_date, ServerBan.ban_time < end_date).limit(100).all()
+    return (db.query(func.count(ServerBan.server_ban_id), ServerBan.banning_admin, Player.last_seen_user_name).
+            join(ServerBan, Player.user_id == ServerBan.banning_admin).
+            filter(start_date < ServerBan.ban_time, ServerBan.ban_time < end_date).
+            group_by(ServerBan.banning_admin, Player.last_seen_user_name).
+            order_by(func.count(ServerBan.server_ban_id).desc()).
+            limit(10).all())
 
 
-def get_all_job_bans(start_date, end_date):
+def get_all_job_bans_count(start_date, end_date):
     db = next(get_db())
-    return (db.query(ServerRoleBan).filter(ServerRoleBan.ban_time > start_date, ServerRoleBan.ban_time < end_date).
-            limit(100).all())
+    return (
+        db.query(func.count(ServerRoleBan.server_role_ban_id), ServerRoleBan.banning_admin, Player.last_seen_user_name).
+        join(ServerRoleBan, Player.user_id == ServerRoleBan.banning_admin).
+        filter(start_date < ServerRoleBan.ban_time, ServerRoleBan.ban_time < end_date).
+        group_by(ServerRoleBan.banning_admin, Player.last_seen_user_name).
+        order_by(func.count(ServerRoleBan.server_role_ban_id).desc()).
+        limit(10).all())
 
 
 def get_admin_bans(user_id, start_date, end_date):
