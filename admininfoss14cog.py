@@ -81,7 +81,7 @@ class AdminInfoSs14Cog(commands.Cog):
         bans = crud.get_user_bans(start_date_formatted, end_date_formatted, crud.get_user_id_by_name(username))
         if len(bans) <= 0 or bans is None:
             await ctx.respond(f"У {username} {embed_start_date}"
-                              f"{embed_end_date.split('.')[0]} банов ролей не обнаружено.")
+                              f"{embed_end_date.split('.')[0]} банов не обнаружено.")
             return
         bans_count = 0
         for ban in bans:

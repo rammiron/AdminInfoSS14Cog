@@ -4,6 +4,9 @@ from .models import Player, Admin, ServerBan, ServerRoleBan
 from utils.db_alchemy import get_db
 
 
+
+def ds_user_was_found_in_db:
+
 def get_user_by_name(name):
     db = next(get_db())
     user = db.query(Player).filter(Player.last_seen_user_name == name)
