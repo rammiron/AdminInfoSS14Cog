@@ -1,11 +1,26 @@
 from sqlalchemy import func
 
-from .models import Player, Admin, ServerBan, ServerRoleBan
+from .models import Player, Admin, ServerBan, ServerRoleBan, DiscordUser
 from utils.db_alchemy import get_db
 
 
+def ds_user_was_found_in_db(discord):
+    db = next(get_db())
+    user = db.query(DiscordUser).filter(DiscordUser.discord_id == discord).first()
+    if user is None:
+        return False
+    return True
 
-def ds_user_was_found_in_db:
+
+def ds_user_was_player_owner(discord_id, user_id):
+    if not ds_user_was_found_in_db(discord_id):
+        return False
+    db = next(get_db())
+    user = db.query(DiscordUser).filter(DiscordUser.user_id == user_id, DiscordUser.discord_id == discord_id).first()
+    if user is None:
+        return False
+    return True
+
 
 def get_user_by_name(name):
     db = next(get_db())

@@ -48,12 +48,20 @@ class AdminInfoSs14Cog(commands.Cog):
                                                   "\"ГГГГ-ММ-ДД\"")
                             = str(datetime.today().date())):
 
-        user = crud.get_user_id_by_name(username)
-        if user is None:
+        user_id = crud.get_user_id_by_name(username)
+
+        if user_id is None:
             await ctx.respond(f"Пользователь **{username}** не найден. Убедитесь что правильно ввели сикей.")
             return
         await ctx.defer()
-
+        if not crud.ds_user_was_found_in_db(ctx.author.id):
+            await ctx.respond(f"{ctx.author.mention}, "
+                              f"похоже ваш дискорд не привязан. Привяжите его написав в лс боту с помощью команды "
+                              f"\"/gift\".", ephemeral=True)
+            return
+        if not crud.ds_user_was_player_owner(ctx.author.id, user_id):
+            await ctx.respond(f"{ctx.author.mention}, вы не можете просмотреть чужой список банов.")
+            return
         if start_date == '2000-01-01':
             embed_start_date = ""
         else:
@@ -111,11 +119,19 @@ class AdminInfoSs14Cog(commands.Cog):
                           end_date: Option(str, "Конец временного диапазона для поиска банов. Формат времени:"
                                                 "\"ГГГГ-ММ-ДД\"")
                           = str(datetime.today().date())):
-        user = crud.get_user_id_by_name(username)
-        if user is None:
+        user_id = crud.get_user_id_by_name(username)
+
+        if user_id is None:
             await ctx.respond(f"Пользователь **{username}** не найден. Убедитесь что правильно ввели сикей.")
             return
         await ctx.defer()
+        if not crud.ds_user_was_found_in_db(ctx.author.id):
+            await ctx.respond(f"Похоже ваш дискорд не привязан. Привяжите его написав в лс боту с помощью команды "
+                              f"\"/gift\".", ephemeral=True)
+            return
+        if not crud.ds_user_was_player_owner(ctx.author.id, user_id):
+            await ctx.respond(f"Извините, вы не можете просмотреть чужой список банов.", ephemeral=True)
+            return
 
         if start_date == '2000-01-01':
             embed_start_date = ""
