@@ -121,10 +121,12 @@ class AdminInfoSs14Cog(commands.Cog):
                           = str(datetime.today().date())):
         user_id = crud.get_user_id_by_name(username)
 
+        await ctx.defer()
+
         if user_id is None:
             await ctx.respond(f"Пользователь **{username}** не найден. Убедитесь что правильно ввели сикей.")
             return
-        await ctx.defer()
+
         if not crud.ds_user_was_found_in_db(ctx.author.id):
             await ctx.respond(f"Похоже ваш дискорд не привязан. Привяжите его написав в лс боту с помощью команды "
                               f"\"/gift\".", ephemeral=True)
@@ -257,8 +259,7 @@ class AdminInfoSs14Cog(commands.Cog):
         result_embed = discord.Embed(
             title=f"Топ админов по банам ролей {embed_start_date} {embed_end_date}",
             colour=discord.Colour.dark_gold()
-        )
-
+                                    )
         # endregion
 
         index = 1
@@ -269,4 +270,47 @@ class AdminInfoSs14Cog(commands.Cog):
                                                                   f" {ban_count_tuple[0]}", inline=False)
             index += 1
 
+        await ctx.respond(embed=result_embed)
+
+    @commands.slash_command(name="check_admin_stats", description="Отображает статистику администратора.")
+    async def get_admin_stats(self, ctx: discord.ApplicationContext,
+                              nickname: Option(str, "Игровое имя администратора."),
+                              start_date: Option(str,
+                                                 "Начало временного диапазона"
+                                                 " для поиска. Формат времени:"
+                                                 " \"ГГГГ-ММ-ДД\"") = '2000-01-01',
+                              end_date: Option(str, "Конец временного диапазона для поиска. Формат времени:"
+                                                    " \"ГГГГ-ММ-ДД\"") = str(datetime.today().date())):
+        user_id = crud.get_user_id_by_name(nickname)
+        if user_id is None:
+            await ctx.respond(f"Пользователь с ником {nickname} не найден.")
+            return
+        if crud.user_id_belongs_admin(user_id) is False:
+            await ctx.respond(f"Пользователь с ником {nickname} не является администратором.")
+            return
+        if start_date == '2000-01-01':
+            embed_start_date = ""
+        else:
+            embed_start_date = f"с {start_date} "
+        if end_date == str(datetime.today().date()):
+            embed_end_date = "до сегодняшнего дня."
+        else:
+            embed_end_date = f"до {end_date}."
+        if start_date == str(datetime.today().date()) and end_date == str(datetime.today().date()):
+            embed_start_date = ""
+            embed_end_date = "за сегодняшний день."
+        elif start_date == end_date:
+            embed_start_date = ""
+            embed_end_date = f"за {end_date}."
+        bans = crud.get_admin_bans_count(user_id, start_date, end_date)
+        job_bans = crud.get_admin_job_bans_count(user_id, start_date, end_date)
+        admin_notes = crud.get_admin_notes_count(user_id, start_date, end_date)
+
+        result_embed = discord.Embed(
+            title=f"Статистика администратора {nickname} {embed_start_date} {embed_end_date}\n"
+                  f"Количество банов: {bans}\n"
+                  f"Количество джоббанов: {job_bans}\n"
+                  f"Количество предупреждений: {admin_notes}",
+            colour=discord.Colour.dark_gold()
+        )
         await ctx.respond(embed=result_embed)

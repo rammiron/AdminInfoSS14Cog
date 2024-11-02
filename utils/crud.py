@@ -1,6 +1,6 @@
+from datetime import datetime
 from sqlalchemy import func
-
-from .models import Player, Admin, ServerBan, ServerRoleBan, DiscordUser
+from .models import Player, Admin, ServerBan, ServerRoleBan, DiscordUser, AdminNotes
 from utils.db_alchemy import get_db
 
 
@@ -29,6 +29,15 @@ def get_user_by_name(name):
         return user
     else:
         return None
+
+
+def user_id_belongs_admin(user_id: int) -> bool:
+    db = next(get_db())
+    result = db.query(Admin).filter(Admin.user_id == user_id).first()
+    if result is not None:
+        return True
+    else:
+        return False
 
 
 def get_player_name_by_id(user_id: int):
@@ -77,11 +86,24 @@ def get_all_job_bans_count(start_date, end_date):
         limit(10).all())
 
 
-def get_admin_bans(user_id, start_date, end_date):
+def get_admin_notes_count(user_id, start_date, end_date):
     db = next(get_db())
-    return (db.query(ServerBan).filter(ServerBan.ban_time > start_date, ServerBan.ban_time < end_date,
-                                       ServerBan.banning_admin == user_id).
-            limit(100).all())
+    return (db.query(func.count(AdminNotes.created_by_id)).filter(AdminNotes.created_at > start_date,
+                                                                  AdminNotes.created_by_id == user_id).first()[0])
+
+
+def get_admin_bans_count(user_id, start_date, end_date):
+    db = next(get_db())
+    return (db.query(func.count(ServerBan.banning_admin)).filter(ServerBan.ban_time > start_date,
+                                                                 ServerBan.ban_time < end_date,
+                                                                 ServerBan.banning_admin == user_id).first()[0])
+
+
+def get_admin_job_bans_count(user_id, start_date, end_date):
+    db = next(get_db())
+    return (db.query(func.count(ServerRoleBan.banning_admin)).filter(ServerRoleBan.ban_time > start_date,
+                                                                     ServerRoleBan.ban_time < end_date,
+                                                                     ServerRoleBan.banning_admin == user_id).first()[0])
 
 
 def get_admin_role_bans(user_id, start_date, end_date):

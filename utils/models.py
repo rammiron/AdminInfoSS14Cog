@@ -27,6 +27,14 @@ class Admin(Base):
     title = Column(Text)
 
 
+class AdminNotes(Base):
+    __tablename__ = "admin_notes"
+    admin_notes_id = Column(Integer, nullable=False, primary_key=True)
+    created_at = Column(DateTime, nullable=False)
+    created_by_id = Column(Integer)
+    severity = Column(Integer)
+
+
 class ServerBan(Base):
     __tablename__ = "server_ban"
     server_ban_id = Column(Integer, nullable=False, primary_key=True)
